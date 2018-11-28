@@ -130,6 +130,7 @@ mutable struct CppFunctionInfo
 end
 
 function __init__()
+  println("Initializing...")
   @static if Sys.iswindows()
     Libdl.dlopen(jlcxx_path, Libdl.RTLD_GLOBAL)
   end
@@ -138,8 +139,6 @@ function __init__()
   if jlcxxversion < v"0.5.0"
     error("This version of CxxWrap requires at least libcxxwrap-julia v0.5.0, but version $jlcxxversion was found")
   end
-
-  ccall((:initialize, jlcxx_path), Cvoid, (Any, Any), CxxWrap, CppFunctionInfo)
 end
 
 function has_cxx_module(mod::Module)
@@ -147,7 +146,12 @@ function has_cxx_module(mod::Module)
   return r != 0
 end
 
+function initialize_cxx_lib()
+  ccall((:initialize, jlcxx_path), Cvoid, (Any, Any), @__MODULE__, CppFunctionInfo)
+end
+
 function register_julia_module(mod::Module, fptr::Ptr{Cvoid})
+  initialize_cxx_lib()
   ccall((:register_julia_module, jlcxx_path), Cvoid, (Any,Ptr{Cvoid}), mod, fptr)
 end
 
@@ -155,7 +159,7 @@ function register_julia_module(mod::Module)
   fptr = Libdl.dlsym(Libdl.dlopen(mod.__cxxwrap_sopath), mod.__cxxwrap_wrapfunc)
   if !has_cxx_module(mod)
     empty!(mod.__cxxwrap_pointers)
-    ccall((:register_julia_module, jlcxx_path), Cvoid, (Any,Ptr{Cvoid}), mod, fptr)
+    register_julia_module(mod, fptr)
   end
   if length(mod.__cxxwrap_pointers) != mod.__cxxwrap_nbpointers
     error("Binary part of module was changed since last precompilation, please rebuild.")
@@ -451,5 +455,11 @@ wstring_to_cpp(s::String) = transcode(Cwchar_t, s)
 
 isnull(x::T) where{T} = isnull(cpp_trait_type(T), x)
 isnull(::Type{IsCxxType}, x) = (x.cpp_object == C_NULL)
+
+include("StdLib.jl")
+
+using .StdLib: StdVector
+
+export StdVector
 
 end # module
