@@ -5,11 +5,6 @@ module CppTypes
 
 using CxxWrap
 
-struct ImmutableBits
-  a::Float64
-  b::Float64
-end
-
 @wrapmodule(Main.libtypes)
 
 export enum_to_int, get_enum_b, World
@@ -130,6 +125,3 @@ CppTypes.print_foo_array(foovec)
 
 @test !isnull(CppTypes.return_ptr())
 @test isnull(CppTypes.return_null())
-
-imm = CppTypes.ImmutableBits(1.0, 2.0)
-@show CppTypes.increment_immutable(imm)
